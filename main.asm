@@ -19,6 +19,7 @@ configuracion db "CONFIGURACION$"
 puntajes      db "PUNTAJES ALTOS$"
 salir         db "SALIR$"
 iniciales     db "Diego Andres Huite Alvarez",0A,"              202003585","$"
+controlesActuales     db "CONTROLES ACTUALES","$"
 ;; JUEGO
 xJugador      db 2
 yJugador      db 4
@@ -33,6 +34,23 @@ control_arriba    db  48
 control_abajo     db  50
 control_izquierda db  4b
 control_derecha   db  4d
+;; prompts change controls
+prompt_arriba    db  "Presione tecla arriba: ", "$"
+prompt_abajo     db  "Presione tecla abajo: ", "$"
+prompt_izquierda db  "Presione tecla izquierda: ", "$"
+prompt_derecha   db  "Presione tecla derecha: ", "$"
+;; STRING CONTROLES
+stringcontrol_arriba    db  " ", "$"
+stringcontrol_abajo     db  " ", "$"
+stringcontrol_izquierda db  " ", "$"
+stringcontrol_derecha   db  " ", "$"
+; string control indicator
+mensajecontrol_arriba    db  "ARRIBA: ", "$"
+mensajecontrol_abajo     db  "ABAJO: ", "$"
+mensajecontrol_izquierda db  "IZQUIERDA: ", "$"
+mensajecontrol_derecha   db  "DERECHA: ", "$"
+mensajecambiarControles  db  "Cambiar controles", "$"
+mensajeregresar  db  "Regresar", "$"
 .CODE
 .STARTUP
 inicio:
@@ -65,14 +83,97 @@ inicio:
 		
 		exitfor:
 
-
+		displayPrincipalMenu:
 		call clear_pantalla
-		;call menu_principal
+		call menu_principal
+		mov AL, [opcion]
+		cmp AL, 0
+		je quemadin
+		cmp AL, 2
+		je menuconfig
+
 		
 
-		call mapa_quemado
+		;call mapa_quemado
 		
-		;;
+menuconfig:
+	call menu_config
+	mov AL, [opcion]
+	cmp AL, 0
+	je changeControls
+	cmp AL, 1
+	je displayPrincipalMenu
+
+changeControls:
+	mov DL, 05  ; columna 12
+	mov DH, 01  ;fila 1
+	mov BH, 00
+	mov AH, 02 
+	int 10
+		;; <<-- posicionar el cursor
+
+	call clear_pantalla
+	printString prompt_abajo
+	mov ah, 00
+	int 16
+	mov control_abajo, ah
+	mov stringcontrol_abajo[0], al
+
+		mov DL, 05  ; columna 12
+	mov DH, 01  ;fila 1
+	mov BH, 00
+	mov AH, 02 
+	int 10
+		;; <<-- posicionar el cursor
+
+	call clear_pantalla
+	printString prompt_arriba
+	mov ah, 00
+	int 16
+	mov control_arriba, ah
+	mov stringcontrol_arriba[0], al
+
+		mov DL, 05  ; columna 12
+	mov DH, 01  ;fila 1
+	mov BH, 00
+	mov AH, 02 
+	int 10
+		;; <<-- posicionar el cursor
+
+
+	call clear_pantalla
+	printString prompt_derecha
+	mov ah, 00
+	int 16
+	mov control_derecha, ah
+	mov stringcontrol_derecha[0], al
+
+		mov DL, 05  ; columna 12
+	mov DH, 01  ;fila 1
+	mov BH, 00
+	mov AH, 02 
+	int 10
+		;; <<-- posicionar el cursor
+
+
+	call clear_pantalla
+	printString prompt_izquierda
+	mov ah, 00
+	int 16
+	mov control_izquierda, ah
+	mov stringcontrol_izquierda[0], al
+
+
+
+
+
+
+	jmp menuconfig
+
+
+
+quemadin:
+		call mapa_quemado
 ciclo_juego:
 		call pintar_mapa
 		call entrada_juego
@@ -213,6 +314,211 @@ clear_h:
 		add BX, 08
 		pop CX
 		loop clear_v
+		ret
+
+
+
+
+;; menu_principal - menu principal
+;; ..
+;; SALIDA
+;;    - [opcion] -> código numérico de la opción elegida
+menu_config:
+		call clear_pantalla
+		mov AL, 0
+		mov [opcion], AL      ;; reinicio de la variable de salida
+		mov AL, 2
+		mov [maximo], AL
+		mov AX, 3C
+		mov BX, 58
+		mov [xFlecha], AX
+		mov [yFlecha], BX
+	;; IMPRIMIR OPCIONES ;;
+		;;;; INICIAR JUEGO
+		mov DL, 0A  ; columna 12
+		mov DH, 01  ;fila 1
+		mov BH, 00
+		mov AH, 02 
+		int 10
+		;; <<-- posicionar el cursor
+		push DX
+		mov DX, offset controlesActuales
+		mov AH, 09
+		int 21
+		pop DX
+		;;
+
+		mov DL, 0C  ; columna 12
+		mov DH, 01  ;fila 1
+		mov BH, 00
+		mov AH, 02 
+		int 10
+		;; <<-- posicionar el cursor
+		;;;; ARRIBA: 
+		add DH, 02
+		mov BH, 00
+		mov AH, 02
+		int 10
+		push DX
+		mov DX, offset mensajecontrol_arriba
+		mov AH, 09
+		int 21
+		pop DX
+
+		; imprimiendo el caracter correspondiente
+		push DX
+		mov DX, offset stringcontrol_arriba
+		mov AH, 09
+		int 21
+		pop DX
+
+
+
+		;;
+		;;;; ABAJO: 
+		add DH, 02
+		mov BH, 00
+		mov AH, 02
+		int 10
+		push DX
+		mov DX, offset mensajecontrol_abajo
+		mov AH, 09
+		int 21
+		pop DX
+
+			; imprimiendo el caracter correspondiente
+		push DX
+		mov DX, offset stringcontrol_abajo
+		mov AH, 09
+		int 21
+		pop DX
+		;;
+		;;;; izquierda
+		add DH, 02
+		mov BH, 00
+		mov AH, 02
+		int 10
+		push DX
+		mov DX, offset mensajecontrol_izquierda
+		mov AH, 09
+		int 21
+		pop DX
+
+			; imprimiendo el caracter correspondiente
+		push DX
+		mov DX, offset stringcontrol_izquierda
+		mov AH, 09
+		int 21
+		pop DX
+		;;
+		;;;; DERECHA:
+		add DH, 02
+		mov BH, 00
+		mov AH, 02
+		int 10
+		push DX
+		mov DX, offset mensajecontrol_derecha
+		mov AH, 09
+		int 21
+		pop DX
+
+			; imprimiendo el caracter correspondiente
+		push DX
+		mov DX, offset stringcontrol_derecha
+		mov AH, 09
+		int 21
+		pop DX
+
+		mov DL, 0A  ; columna 12
+		mov DH, 09  ;fila 1
+		mov BH, 00
+		mov AH, 02 
+		int 10
+
+		
+		;;;; CAMBIAR CONTROLES:
+		add DH, 02
+		mov BH, 00
+		mov AH, 02
+		int 10
+		push DX
+		mov DX, offset mensajecambiarControles
+		mov AH, 09
+		int 21
+		pop DX
+		;;;; REGRESAR:
+		add DH, 02
+		mov BH, 00
+		mov AH, 02
+		int 10
+		push DX
+		mov DX, offset mensajeregresar
+		mov AH, 09
+		int 21
+		pop DX
+
+		
+		;;;;
+		call pintar_flecha
+		;;;;
+		;; LEER TECLA
+		;;;;
+entrada_menu_config:
+		mov AH, 00
+		int 16
+		cmp AH, 48
+		je restar_opcion_menu_config
+		cmp AH, 50
+		je sumar_opcion_menu_config
+		cmp AH, 3b  ;; le doy F1
+		je fin_menu_config
+		jmp entrada_menu_config
+restar_opcion_menu_config:
+		mov AL, [opcion]
+		dec AL
+		cmp AL, 0ff
+		je volver_a_ceroconfig
+		mov [opcion], AL
+		jmp mover_flecha_menu_config
+sumar_opcion_menu_config:
+		mov AL, [opcion]
+		mov AH, [maximo]
+		inc AL
+		cmp AL, AH
+		je volver_a_maximoconfig
+		mov [opcion], AL
+		jmp mover_flecha_menu_config
+volver_a_ceroconfig:
+		mov AL, 0
+		mov [opcion], AL
+		jmp mover_flecha_menu_config
+volver_a_maximoconfig:
+		mov AL, [maximo]
+		dec AL
+		mov [opcion], AL
+		jmp mover_flecha_menu_config
+mover_flecha_menu_config:
+		mov AX, [xFlecha]
+		mov BX, [yFlecha]
+		mov SI, offset dim_sprite_vacio
+		mov DI, offset data_sprite_vacio
+		call pintar_sprite
+		mov AX, 3C
+		mov BX, 58
+		mov CL, [opcion]
+ciclo_ubicar_flecha_menu_config:
+		cmp CL, 0
+		je pintar_flecha_menu_config
+		dec CL
+		add BX, 10
+		jmp ciclo_ubicar_flecha_menu_config
+pintar_flecha_menu_config:
+		mov [xFlecha], AX
+		mov [yFlecha], BX
+		call pintar_flecha
+		jmp entrada_menu_config
+		;;
+fin_menu_config:
 		ret
 
 
