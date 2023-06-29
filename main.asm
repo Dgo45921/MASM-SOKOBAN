@@ -67,12 +67,11 @@ inicio:
 
 
 		call clear_pantalla
-
-		call menu_principal
+		;call menu_principal
 		
 
-		;call mapa_quemado
-		jmp fin
+		call mapa_quemado
+		
 		;;
 ciclo_juego:
 		call pintar_mapa
