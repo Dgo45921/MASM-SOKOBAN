@@ -51,6 +51,10 @@ mensajecontrol_izquierda db  "IZQUIERDA: ", "$"
 mensajecontrol_derecha   db  "DERECHA: ", "$"
 mensajecambiarControles  db  "Cambiar controles", "$"
 mensajeregresar  db  "Regresar", "$"
+; mensajes de pausa
+reaundarPausa  db  "Reanudar", "$"
+salirPausa  db  "Salir", "$"
+
 .CODE
 .STARTUP
 inicio:
@@ -656,6 +660,114 @@ pintar_flecha_menu_principal:
 fin_menu_principal:
 		ret
 
+
+;; menu_principal - menu principal
+;; ..
+;; SALIDA
+;;    - [opcion] -> código numérico de la opción elegida
+menu_pause:
+		call clear_pantalla
+		mov AL, 0
+		mov [opcion], AL      ;; reinicio de la variable de salida
+		mov AL, 2
+		mov [maximo], AL
+		mov AX, 50
+		mov BX, 28
+		mov [xFlecha], AX
+		mov [yFlecha], BX
+		;; IMPRIMIR OPCIONES ;;
+		;;;; INICIAR JUEGO
+		mov DL, 0c
+		mov DH, 05
+		mov BH, 00
+		mov AH, 02
+		int 10
+		;; <<-- posicionar el cursor
+		push DX
+		mov DX, offset reaundarPausa
+		mov AH, 09
+		int 21
+		pop DX
+		;;
+		;;;; REAUNUDAR
+		add DH, 02
+		mov BH, 00
+		mov AH, 02
+		int 10
+		push DX
+		mov DX, offset salirPausa
+		mov AH, 09
+		int 21
+		pop DX
+		;;
+		
+
+		;;;;
+		call pintar_flecha
+		;;;;
+		;; LEER TECLA
+		;;;;
+entrada_menu_pause:
+		mov AH, 00
+		int 16
+		cmp AH, 48
+		je restar_opcion_menu_pause
+		cmp AH, 50
+		je sumar_opcion_menu_pause
+		cmp AH, 3b  ;; le doy F1
+		je fin_menu_pause
+		jmp entrada_menu_pause
+restar_opcion_menu_pause:
+		mov AL, [opcion]
+		dec AL
+		cmp AL, 0ff
+		je volver_a_ceroPause
+		mov [opcion], AL
+		jmp mover_flecha_menu_pause
+sumar_opcion_menu_pause:
+		mov AL, [opcion]
+		mov AH, [maximo]
+		inc AL
+		cmp AL, AH
+		je volver_a_maximoPause
+		mov [opcion], AL
+		jmp mover_flecha_menu_pause
+volver_a_ceroPause:
+		mov AL, 0
+		mov [opcion], AL
+		jmp mover_flecha_menu_pause
+volver_a_maximoPause:
+		mov AL, [maximo]
+		dec AL
+		mov [opcion], AL
+		jmp mover_flecha_menu_pause
+mover_flecha_menu_pause:
+		mov AX, [xFlecha]
+		mov BX, [yFlecha]
+		mov SI, offset dim_sprite_vacio
+		mov DI, offset data_sprite_vacio
+		call pintar_sprite
+		mov AX, 50
+		mov BX, 28
+		mov CL, [opcion]
+ciclo_ubicar_flecha_menu_pause:
+		cmp CL, 0
+		je pintar_flecha_menu_pause
+		dec CL
+		add BX, 10
+		jmp ciclo_ubicar_flecha_menu_pause
+pintar_flecha_menu_pause:
+		mov [xFlecha], AX
+		mov [yFlecha], BX
+		call pintar_flecha
+		jmp entrada_menu_pause
+		;;
+fin_menu_pause:
+	jmp pauseoption
+		ret
+
+;; pintar_flecha - pinta una flecha
+
 ;; pintar_flecha - pinta una flecha
 pintar_flecha:
 		mov AX, [xFlecha]
@@ -953,7 +1065,9 @@ entrada_juego:
 		je mover_jugador_izq
 		cmp AH, [control_derecha]
 		je mover_jugador_der
-		cmp AH, 3c
+		cmp AH, 3C
+		je putPause
+
 		ret
 mover_jugador_arr:
 		mov AH, [xJugador]
@@ -1050,6 +1164,16 @@ hay_pared_derecha:
 fin_entrada_juego:
 		ret
 
+putPause:
+	call menu_pause
+	
+
+pauseoption:
+	mov AL, [opcion]
+	cmp AL, 0
+	je ciclo_juego
+	cmp AL, 1
+	je displayPrincipalMenu
 
 fin:
 .EXIT
