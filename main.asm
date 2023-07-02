@@ -10,11 +10,7 @@ SUELO       equ      05
 .RADIX 16
 .STACK
 .DATA
-
 getSprites
-
-
-numero        db  5 dup (30)
 iniciar_juego db "INICIAR JUEGO$"
 cargar_nivel  db "CARGAR NIVEL$"
 configuracion db "CONFIGURACION$"
@@ -22,24 +18,9 @@ puntajes      db "PUNTAJES ALTOS$"
 salir         db "SALIR$"
 iniciales     db "Diego Andres Huite Alvarez",0A,"              202003585","$"
 controlesActuales     db "CONTROLES ACTUALES","$"
-;; NIVELES
-nivel_x           db  "NIV.00",00
-nivel_0           db  "NIV.00",00
-linea             db  100 dup (0)
-elemento_actual   db  0
-xElemento         db  0
-yElemento         db  0
-;; TOKENS
-tk_pared      db  05,"pared"
-tk_suelo      db  05,"suelo"
-tk_jugador    db  07,"jugador"
-tk_caja       db  04,"caja"
-tk_objetivo   db  08,"objetivo"
-tk_coma       db  01,","
 ;; JUEGO
-
-xJugador      db 2
-yJugador      db 4
+xJugador      db 0
+yJugador      db 0
 puntos        dw 0
 ;; MENÚS
 opcion        db 0
@@ -71,9 +52,24 @@ mensajeregresar  db  "Regresar", "$"
 ; mensajes de pausa
 reaundarPausa  db  "Reanudar", "$"
 salirPausa  db  "Salir", "$"
-
-pathNivel           db  "NIV.TXT",00
+;; NIVELES
+nivel_x           db  "NIV.00",00
+nivel_0           db  "NIV.00",00
 handle_nivel      dw  0000
+linea             db  100 dup (0)
+elemento_actual   db  0
+xElemento         db  0
+yElemento         db  0
+;; TOKENS
+tk_pared      db  05,"pared"
+tk_suelo      db  05,"suelo"
+tk_jugador    db  07,"jugador"
+tk_caja       db  04,"caja"
+tk_objetivo   db  08,"objetivo"
+tk_coma       db  01,","
+;;
+numero        db  5 dup (30)
+;;
 
 .CODE
 .STARTUP
@@ -147,7 +143,7 @@ changeControls:
 	mov control_abajo, ah
 	mov stringcontrol_abajo[0], al
 
-		mov DL, 05  ; columna 12
+	mov DL, 05  ; columna 12
 	mov DH, 01  ;fila 1
 	mov BH, 00
 	mov AH, 02 
@@ -198,6 +194,11 @@ changeControls:
 
 	jmp menuconfig
 
+ciclo_juego:
+		call pintar_mapa
+		call entrada_juego
+		jmp ciclo_juego
+		;;;;;;;;;;;;;;;;
 
 cargar_un_nivel:
 		mov AL, 00
@@ -373,28 +374,6 @@ fin_parseo:
 		jmp ciclo_juego
 		jmp fin
 
-
-quemadin:
-		call mapa_quemado
-ciclo_juego:
-		call pintar_mapa
-		call entrada_juego
-		jmp ciclo_juego
-		;;;;;;;;;;;;;;;;
-		;;;;;;;;;;;;;;;;
-		call menu_principal
-		mov AL, [opcion]
-		;; > INICIAR JUEGO
-		;; > CARGAR NIVEL
-		;; > CONFIGURACION
-		;; > PUNTAJES ALTOS
-		;; > SALIR
-		cmp AL, 4
-		je fin
-		call clear_pantalla
-		;;;;;;;;;;;;;;;;
-
-
 ;; pintar_pixel - pintar un pixel
 ;; ENTRADA:
 ;;     AX --> x pixel
@@ -515,9 +494,6 @@ clear_h:
 		pop CX
 		loop clear_v
 		ret
-
-
-
 
 ;; menu_principal - menu principal
 ;; ..
@@ -721,7 +697,6 @@ pintar_flecha_menu_config:
 fin_menu_config:
 		ret
 
-
 ;; menu_principal - menu principal
 ;; ..
 ;; SALIDA
@@ -856,114 +831,6 @@ pintar_flecha_menu_principal:
 fin_menu_principal:
 		ret
 
-
-;; menu_principal - menu principal
-;; ..
-;; SALIDA
-;;    - [opcion] -> código numérico de la opción elegida
-menu_pause:
-		call clear_pantalla
-		mov AL, 0
-		mov [opcion], AL      ;; reinicio de la variable de salida
-		mov AL, 2
-		mov [maximo], AL
-		mov AX, 50
-		mov BX, 28
-		mov [xFlecha], AX
-		mov [yFlecha], BX
-		;; IMPRIMIR OPCIONES ;;
-		;;;; INICIAR JUEGO
-		mov DL, 0c
-		mov DH, 05
-		mov BH, 00
-		mov AH, 02
-		int 10
-		;; <<-- posicionar el cursor
-		push DX
-		mov DX, offset reaundarPausa
-		mov AH, 09
-		int 21
-		pop DX
-		;;
-		;;;; REAUNUDAR
-		add DH, 02
-		mov BH, 00
-		mov AH, 02
-		int 10
-		push DX
-		mov DX, offset salirPausa
-		mov AH, 09
-		int 21
-		pop DX
-		;;
-		
-
-		;;;;
-		call pintar_flecha
-		;;;;
-		;; LEER TECLA
-		;;;;
-entrada_menu_pause:
-		mov AH, 00
-		int 16
-		cmp AH, 48
-		je restar_opcion_menu_pause
-		cmp AH, 50
-		je sumar_opcion_menu_pause
-		cmp AH, 3b  ;; le doy F1
-		je fin_menu_pause
-		jmp entrada_menu_pause
-restar_opcion_menu_pause:
-		mov AL, [opcion]
-		dec AL
-		cmp AL, 0ff
-		je volver_a_ceroPause
-		mov [opcion], AL
-		jmp mover_flecha_menu_pause
-sumar_opcion_menu_pause:
-		mov AL, [opcion]
-		mov AH, [maximo]
-		inc AL
-		cmp AL, AH
-		je volver_a_maximoPause
-		mov [opcion], AL
-		jmp mover_flecha_menu_pause
-volver_a_ceroPause:
-		mov AL, 0
-		mov [opcion], AL
-		jmp mover_flecha_menu_pause
-volver_a_maximoPause:
-		mov AL, [maximo]
-		dec AL
-		mov [opcion], AL
-		jmp mover_flecha_menu_pause
-mover_flecha_menu_pause:
-		mov AX, [xFlecha]
-		mov BX, [yFlecha]
-		mov SI, offset dim_sprite_vacio
-		mov DI, offset data_sprite_vacio
-		call pintar_sprite
-		mov AX, 50
-		mov BX, 28
-		mov CL, [opcion]
-ciclo_ubicar_flecha_menu_pause:
-		cmp CL, 0
-		je pintar_flecha_menu_pause
-		dec CL
-		add BX, 10
-		jmp ciclo_ubicar_flecha_menu_pause
-pintar_flecha_menu_pause:
-		mov [xFlecha], AX
-		mov [yFlecha], BX
-		call pintar_flecha
-		jmp entrada_menu_pause
-		;;
-fin_menu_pause:
-	jmp pauseoption
-		ret
-
-;; pintar_flecha - pinta una flecha
-
 ;; pintar_flecha - pinta una flecha
 pintar_flecha:
 		mov AX, [xFlecha]
@@ -1032,10 +899,10 @@ obtener_de_mapa:
 ;; ENTRADA:
 ;; SALIDA:
 pintar_mapa:
-		mov AL, 01   ;; fila
+		mov AL, 00   ;; fila
 		;;
 ciclo_v:
-		cmp AL, 18
+		cmp AL, 19
 		je fin_pintar_mapa
 		mov AH, 00   ;; columna
 		;;
@@ -1137,7 +1004,7 @@ mapa_quemado:
 		mov AH, 4
 		mov AL, 2
 		call colocar_en_mapa
-		mov DL, SUELO
+		mov DL, PARED
 		mov AH, 2
 		mov AL, 3
 		call colocar_en_mapa
@@ -1179,23 +1046,23 @@ mapa_quemado:
 		;;
 		mov DL, PARED
 		mov AH, 1
-		mov AL, 3
+		mov AL, 1
 		call colocar_en_mapa
 		mov DL, PARED
 		mov AH, 2
-		mov AL, 3
+		mov AL, 1
 		call colocar_en_mapa
 		mov DL, PARED
 		mov AH, 3
-		mov AL, 3
+		mov AL, 1
 		call colocar_en_mapa
 		mov DL, PARED
 		mov AH, 4
-		mov AL, 3
+		mov AL, 1
 		call colocar_en_mapa
 		mov DL, PARED
 		mov AH, 5
-		mov AL, 3
+		mov AL, 1
 		call colocar_en_mapa
 		mov DL, PARED
 		mov AH, 1
@@ -1371,25 +1238,118 @@ pauseoption:
 	cmp AL, 1
 	je displayPrincipalMenu
 
-cadena_igual:
-		mov CH, 00
-		mov CL, [SI]
-		inc SI
-ciclo_cadena_igual:
-		mov AL, [SI]
-		cmp AL, [DI]
-		jne fin_cadena_igual
-		inc SI
-		inc DI
-		loop ciclo_cadena_igual
-cadenas_son_iguales:
-		mov DL, 0ff
-		ret
-fin_cadena_igual:
-		mov DL, 00
+
+menu_pause:
+		call clear_pantalla
+		mov AL, 0
+		mov [opcion], AL      ;; reinicio de la variable de salida
+		mov AL, 2
+		mov [maximo], AL
+		mov AX, 50
+		mov BX, 28
+		mov [xFlecha], AX
+		mov [yFlecha], BX
+		;; IMPRIMIR OPCIONES ;;
+		;;;; INICIAR JUEGO
+		mov DL, 0c
+		mov DH, 05
+		mov BH, 00
+		mov AH, 02
+		int 10
+		;; <<-- posicionar el cursor
+		push DX
+		mov DX, offset reaundarPausa
+		mov AH, 09
+		int 21
+		pop DX
+		;;
+		;;;; REAUNUDAR
+		add DH, 02
+		mov BH, 00
+		mov AH, 02
+		int 10
+		push DX
+		mov DX, offset salirPausa
+		mov AH, 09
+		int 21
+		pop DX
+		;;
+		
+
+		;;;;
+		call pintar_flecha
+		;;;;
+		;; LEER TECLA
+		;;;;
+entrada_menu_pause:
+		mov AH, 00
+		int 16
+		cmp AH, 48
+		je restar_opcion_menu_pause
+		cmp AH, 50
+		je sumar_opcion_menu_pause
+		cmp AH, 3b  ;; le doy F1
+		je fin_menu_pause
+		jmp entrada_menu_pause
+restar_opcion_menu_pause:
+		mov AL, [opcion]
+		dec AL
+		cmp AL, 0ff
+		je volver_a_ceroPause
+		mov [opcion], AL
+		jmp mover_flecha_menu_pause
+sumar_opcion_menu_pause:
+		mov AL, [opcion]
+		mov AH, [maximo]
+		inc AL
+		cmp AL, AH
+		je volver_a_maximoPause
+		mov [opcion], AL
+		jmp mover_flecha_menu_pause
+volver_a_ceroPause:
+		mov AL, 0
+		mov [opcion], AL
+		jmp mover_flecha_menu_pause
+volver_a_maximoPause:
+		mov AL, [maximo]
+		dec AL
+		mov [opcion], AL
+		jmp mover_flecha_menu_pause
+mover_flecha_menu_pause:
+		mov AX, [xFlecha]
+		mov BX, [yFlecha]
+		mov SI, offset dim_sprite_vacio
+		mov DI, offset data_sprite_vacio
+		call pintar_sprite
+		mov AX, 50
+		mov BX, 28
+		mov CL, [opcion]
+ciclo_ubicar_flecha_menu_pause:
+		cmp CL, 0
+		je pintar_flecha_menu_pause
+		dec CL
+		add BX, 10
+		jmp ciclo_ubicar_flecha_menu_pause
+pintar_flecha_menu_pause:
+		mov [xFlecha], AX
+		mov [yFlecha], BX
+		call pintar_flecha
+		jmp entrada_menu_pause
+		;;
+fin_menu_pause:
+	jmp pauseoption
 		ret
 
 
+
+
+;; siguiente_linea - extrae la siguiente línea del archivo referenciado por el handle en BX
+;; ENTRADA:
+;;    - BX: handle
+;; SALIDA:
+;;    - [linea]: contenido de la línea que se extrajo, finalizada en 00 (nul0)
+;;    - DL: si el archivo llegó a su fin
+;;    - DH: la cantidad de caracteres en la línea
 siguiente_linea:
 		mov SI, 0000
 		mov DI, offset linea
@@ -1424,6 +1384,35 @@ fin_siguiente_linea:
 		ret
 
 
+;; cadena_igual - verifica que dos cadenas sean iguales
+;; ENTRADA:
+;;    - SI: cadena 1, con su tamaño en el primer byte
+;;    - DI: cadena 2
+;; SALIDA:
+;;    - DL: 0ff si son iguales, 00 si no lo son
+cadena_igual:
+		mov CH, 00
+		mov CL, [SI]
+		inc SI
+ciclo_cadena_igual:
+		mov AL, [SI]
+		cmp AL, [DI]
+		jne fin_cadena_igual
+		inc SI
+		inc DI
+		loop ciclo_cadena_igual
+cadenas_son_iguales:
+		mov DL, 0ff
+		ret
+fin_cadena_igual:
+		mov DL, 00
+		ret
+
+
+;; ignorar_espacios - ignora una sucesión de espacios
+;; ENTRADA:
+;;    - DI: offset de una cadena cuyo primer byte se supone es un espacio
+;; ...
 ignorar_espacios:
 ciclo_ignorar:
 		mov AL, [DI]
@@ -1438,6 +1427,20 @@ ignorar_caracter:
 fin_ignorar:
 		ret
 
+
+;; memset - memset
+;; ENTRADA:
+;;    - DI: offset del inicio de la cadena de bytes
+;;    - CX: cantidad de bytes
+;;    - AL: valor que se pondrá en cada byte
+memset:
+		push DI
+ciclo_memset:
+		mov [DI], AL
+		inc DI
+		loop ciclo_memset
+		pop DI
+		ret
 
 
 ;; leer_cadena_numerica - lee una cadena que debería estar compuesta solo de números
@@ -1502,16 +1505,6 @@ seguir_convirtiendo:
 		loop seguir_convirtiendo
 retorno_cadenaAnum:
 		ret
-
-memset:
-		push DI
-ciclo_memset:
-		mov [DI], AL
-		inc DI
-		loop ciclo_memset
-		pop DI
-		ret
-
 
 
 fin:
