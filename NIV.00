@@ -1,0 +1,59 @@
+
+pared 01, 00
+pared 02, 00
+pared 03, 00
+pared 04, 00
+pared 05, 00
+pared 06, 00
+
+pared 07, 00
+pared 08, 00
+pared 09, 00
+pared 10, 00
+pared 11, 00
+pared 12, 00
+
+
+pared 10, 01
+pared 10, 02
+pared 10, 03
+pared 10, 04
+pared 10, 05
+pared 10, 05
+
+pared 01, 10
+pared 02, 10
+pared 03, 10
+pared 04, 10
+
+pared 00, 01
+pared 00, 02
+pared 00, 03
+pared 00, 04
+pared 00, 05
+
+suelo 01, 01
+suelo 01, 02
+suelo 01, 03
+suelo 01, 04
+
+suelo 02, 01
+suelo 02, 02
+suelo 02, 03
+suelo 02, 04
+
+suelo 03, 01
+suelo 03, 02
+suelo 03, 03
+suelo 03, 04
+
+suelo 04, 01
+suelo 04, 02
+suelo 04, 03
+suelo 04, 04
+objetivo 02, 02
+objetivo 03, 02
+
+caja 02, 03
+caja 03, 03
+jugador 01, 02

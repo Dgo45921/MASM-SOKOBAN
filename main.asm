@@ -13,6 +13,8 @@ SUELO       equ      05
 
 getSprites
 
+
+numero        db  5 dup (30)
 iniciar_juego db "INICIAR JUEGO$"
 cargar_nivel  db "CARGAR NIVEL$"
 configuracion db "CONFIGURACION$"
@@ -20,7 +22,22 @@ puntajes      db "PUNTAJES ALTOS$"
 salir         db "SALIR$"
 iniciales     db "Diego Andres Huite Alvarez",0A,"              202003585","$"
 controlesActuales     db "CONTROLES ACTUALES","$"
+;; NIVELES
+nivel_x           db  "NIV.00",00
+nivel_0           db  "NIV.00",00
+linea             db  100 dup (0)
+elemento_actual   db  0
+xElemento         db  0
+yElemento         db  0
+;; TOKENS
+tk_pared      db  05,"pared"
+tk_suelo      db  05,"suelo"
+tk_jugador    db  07,"jugador"
+tk_caja       db  04,"caja"
+tk_objetivo   db  08,"objetivo"
+tk_coma       db  01,","
 ;; JUEGO
+
 xJugador      db 2
 yJugador      db 4
 puntos        dw 0
@@ -54,6 +71,9 @@ mensajeregresar  db  "Regresar", "$"
 ; mensajes de pausa
 reaundarPausa  db  "Reanudar", "$"
 salirPausa  db  "Salir", "$"
+
+pathNivel           db  "NIV.TXT",00
+handle_nivel      dw  0000
 
 .CODE
 .STARTUP
@@ -92,9 +112,13 @@ inicio:
 		call menu_principal
 		mov AL, [opcion]
 		cmp AL, 0
-		je quemadin
+		je cargar_un_nivel
+
 		cmp AL, 2
 		je menuconfig
+
+		cmp AL, 4
+		je fin
 
 		
 
@@ -175,6 +199,180 @@ changeControls:
 	jmp menuconfig
 
 
+cargar_un_nivel:
+		mov AL, 00
+		mov DX, offset nivel_x
+		mov AH, 3d
+		int 21
+		jc inicio
+		mov [handle_nivel], AX
+		;;
+ciclo_lineas:
+		mov BX, [handle_nivel]
+		call siguiente_linea
+		cmp DL, 0ff      ;; fin-del-archivo?
+		je ver_si_hay_algo_en_linea
+		cmp DH, 00      ;; línea-con-algo?
+		je ciclo_lineas
+		jmp logica_parseo
+ver_si_hay_algo_en_linea:
+		cmp DH, 00
+		je fin_parseo
+		;;;;;;;;;;;;;;;;;;;;;;;
+		;; lógica del parseo ;;
+		;;;;;;;;;;;;;;;;;;;;;;;
+		;; ignorar espacios o retornos de carro
+logica_parseo:
+		mov DI, offset linea
+		push DI
+		;; veríficar retorno de carro
+		mov AL, [DI]
+		cmp AL, 20
+		je ignorar0
+		cmp AL, 0d
+		je ignorar0
+		jmp iniciar_parseo
+ignorar0:
+		call ignorar_espacios
+		;;
+		;; al principio del buffer de la línea está: pared, caja, jugador, suelo, objetivo
+iniciar_parseo:
+		mov SI, offset tk_pared
+		call cadena_igual
+		cmp DL, 0ff               ;; cadenas iguales
+		je es_pared
+		pop DI
+		push DI
+		mov SI, offset tk_caja
+		call cadena_igual
+		cmp DL, 0ff               ;; cadenas iguales
+		je es_caja
+		pop DI
+		push DI
+		mov SI, offset tk_suelo
+		call cadena_igual
+		cmp DL, 0ff               ;; cadenas iguales
+		je es_suelo
+		pop DI
+		push DI
+		mov SI, offset tk_objetivo
+		call cadena_igual
+		cmp DL, 0ff               ;; cadenas iguales
+		je es_objetivo
+		pop DI
+		push DI
+		mov SI, offset tk_jugador
+		call cadena_igual
+		cmp DL, 0ff               ;; cadenas iguales
+		je es_jugador
+		pop DI
+		jmp ciclo_lineas
+es_pared:
+		mov AL, PARED
+		mov [elemento_actual], AL
+		jmp continuar_parseo0
+es_caja:
+		mov AL, CAJA
+		mov [elemento_actual], AL
+		jmp continuar_parseo0
+es_suelo:
+		mov AL, SUELO
+		mov [elemento_actual], AL
+		jmp continuar_parseo0
+es_objetivo:
+		mov AL, OBJETIVO
+		mov [elemento_actual], AL
+		jmp continuar_parseo0
+es_jugador:
+		mov AL, JUGADOR
+		mov [elemento_actual], AL
+		jmp continuar_parseo0
+		;; ignorar espacios
+continuar_parseo0:
+		pop SI         ; ignorara valor inicial de DI
+		mov AL, [DI]
+		cmp AL, 20
+		jne ciclo_lineas
+		call ignorar_espacios
+		;; obtener una cadena numérica
+		call leer_cadena_numerica
+		push DI
+		mov DI, offset numero
+		call cadenaAnum
+		mov [xElemento], AL
+		pop DI
+		;; ignorar espacios
+		mov AL, [DI]
+		cmp AL, 20
+		je continuar_parseo1
+		cmp AL, ','
+		je continuar_parseo2
+		jmp ciclo_lineas
+continuar_parseo1:
+		;; ignorar espacios
+		call ignorar_espacios
+continuar_parseo2:
+		;; obtener una coma
+		mov SI, offset tk_coma
+		call cadena_igual
+		cmp DL, 0ff
+		jne ciclo_lineas
+		;; ignorar espacios
+		mov AL, [DI]
+		cmp AL, 20
+		jne ciclo_lineas
+		call ignorar_espacios
+		;; obtener una cadena numérica
+		mov AL, [elemento_actual]
+		cmp AL, JUGADOR
+		jne seguir_normal_debug
+seguir_normal_debug:
+		call leer_cadena_numerica
+		push DI
+		mov DI, offset numero
+		call cadenaAnum
+		mov [yElemento], AL
+		pop DI
+		;; ignorar_espacios o retorno de carro
+		mov AL, [DI]
+		cmp AL, 20
+		je ignorar1
+		cmp AL, 0d
+		je ignorar1
+		jmp ver_final_de_linea
+ignorar1:
+		call ignorar_espacios
+		;; ver si es el final de la cadena
+ver_final_de_linea:
+		mov AL, [DI]
+		cmp AL, 00
+		jne ciclo_lineas
+		;; usar la información
+		;;
+		mov DL, [elemento_actual]
+		mov AH, [xElemento]
+		mov AL, [yElemento]
+		call colocar_en_mapa
+		mov AL, JUGADOR
+		cmp AL, [elemento_actual]
+		je guardar_coordenadas_jugador
+		jmp ciclo_lineas
+guardar_coordenadas_jugador:
+		mov AH, [xElemento]
+		mov AL, [yElemento]
+		mov [xJugador], AH
+		mov [yJugador], AL
+		jmp ciclo_lineas
+		;;;;;;;;;;;;;;;;;;;;;;;
+fin_parseo:
+		;; cerrar archivo
+		mov AH, 3e
+		mov BX, [handle_nivel]
+		int 21
+		;;
+		jmp ciclo_juego
+		jmp fin
+
 
 quemadin:
 		call mapa_quemado
@@ -195,9 +393,7 @@ ciclo_juego:
 		je fin
 		call clear_pantalla
 		;;;;;;;;;;;;;;;;
-infi:
-		jmp infi
-		jmp fin
+
 
 ;; pintar_pixel - pintar un pixel
 ;; ENTRADA:
@@ -1174,6 +1370,149 @@ pauseoption:
 	je ciclo_juego
 	cmp AL, 1
 	je displayPrincipalMenu
+
+cadena_igual:
+		mov CH, 00
+		mov CL, [SI]
+		inc SI
+ciclo_cadena_igual:
+		mov AL, [SI]
+		cmp AL, [DI]
+		jne fin_cadena_igual
+		inc SI
+		inc DI
+		loop ciclo_cadena_igual
+cadenas_son_iguales:
+		mov DL, 0ff
+		ret
+fin_cadena_igual:
+		mov DL, 00
+		ret
+
+
+siguiente_linea:
+		mov SI, 0000
+		mov DI, offset linea
+		;;
+ciclo_sig_linea:
+		mov AH, 3f
+		mov CX, 0001
+		mov DX, DI
+		int 21h
+		cmp AX, 0000
+		je fin_siguiente_linea
+		mov AL, [DI]
+		cmp AL, 0a
+		je quitar_nl_y_fin
+		inc SI
+		inc DI
+		jmp ciclo_sig_linea
+quitar_nl_y_fin:
+		mov AL, 00
+		mov [DI], AL
+		mov DX, SI
+		mov DH, DL
+		mov DL, 00    ;; no ha finalizado el archivo
+		ret
+fin_siguiente_linea:
+		int 03
+		mov AL, 00
+		mov [DI], AL
+		mov DX, SI
+		mov DH, DL
+		mov DL, 0ff   ;; ya finalizó el archivo
+		ret
+
+
+ignorar_espacios:
+ciclo_ignorar:
+		mov AL, [DI]
+		cmp AL, 20
+		je ignorar_caracter
+		cmp AL, 0d
+		je ignorar_caracter
+		jmp fin_ignorar
+ignorar_caracter:
+		inc DI
+		jmp ciclo_ignorar
+fin_ignorar:
+		ret
+
+
+
+;; leer_cadena_numerica - lee una cadena que debería estar compuesta solo de números
+;; ENTRADA:
+;;    - DI: offset del inicio de la cadena numérica
+;; SALIDA:
+;;    - [numero]: el contenido de la cadena numérica
+leer_cadena_numerica:
+		mov SI, DI
+		;;
+		mov DI, offset numero
+		mov CX, 0005
+		mov AL, 30
+		call memset
+		;;
+		mov DI, SI
+		mov CX, 0000
+ciclo_ubicar_ultimo:
+		mov AL, [DI]
+		cmp AL, 30
+		jb copiar_cadena_numerica
+		cmp AL, 39
+		ja copiar_cadena_numerica
+		inc DI
+		inc CX
+		jmp ciclo_ubicar_ultimo
+copiar_cadena_numerica:
+		push DI   ;;   <----
+		dec DI
+		;;
+		mov SI, offset numero
+		add SI, 0004
+ciclo_copiar_num:
+		mov AL, [DI]
+		mov [SI], AL
+		dec DI
+		dec SI
+		loop ciclo_copiar_num
+		pop DI
+		ret
+
+;; cadenaAnum
+;; ENTRADA:
+;;    DI -> dirección a una cadena numérica
+;; SALIDA:
+;;    AX -> número convertido
+;;;;
+cadenaAnum:
+		mov AX, 0000    ; inicializar la salida
+		mov CX, 0005    ; inicializar contador
+		;;
+seguir_convirtiendo:
+		mov BL, [DI]
+		cmp BL, 00
+		je retorno_cadenaAnum
+		sub BL, 30      ; BL es el valor numérico del caracter
+		mov DX, 000a
+		mul DX          ; AX * DX -> DX:AX
+		mov BH, 00
+		add AX, BX 
+		inc DI          ; puntero en la cadena
+		loop seguir_convirtiendo
+retorno_cadenaAnum:
+		ret
+
+memset:
+		push DI
+ciclo_memset:
+		mov [DI], AL
+		inc DI
+		loop ciclo_memset
+		pop DI
+		ret
+
+
 
 fin:
 .EXIT

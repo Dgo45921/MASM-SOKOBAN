@@ -51,12 +51,12 @@ data_sprite_pared db   1A, 1A, 1A, 1A, 12, 1E, 1A, 1A
 dim_sprite_caja   db   08, 08
 data_sprite_caja  db  0b8,0b8,0b8,0b8,0b8,0b8,0b8,0b8
                   db  0b8,0b8,0b8,0b8,0b8,0b8,0b8,0b8
-                  db  0b8,0b8,8a,8a,8a,8a,0b8,0b8
-                  db  0b8,0b8,8a,8a,8a,8a,0b8,0b8
-                  db  0b8,0b8,8a,8a,8a,8a,0b8,0b8
-                  db  0b8,0b8,8a,8a,8a,8a,0b8,0b8
                   db  0b8,0b8,0b8,0b8,0b8,0b8,0b8,0b8
-                  db  0b8,0b8,0b8,0b8,0b8,0b8,0b8,0b8
+                  db  0b8,02C,29,29,29,41,0b8,0b8
+                  db  02C,29,29,29,02C,04,29,0b8
+                  db  02C,02C,16,02C,02C,41,29,0b8
+                  db  02C,29,29,29,02C,04,29,0b8
+                  db  02C,04,04,04,02C,04,29,0b8
 dim_sprite_obj    db   08, 08
 data_sprite_obj   db  0b8,0b8,0b8,0b8,0b8,0b8,0b8,0b8
                   db  0b8,28,0b8,0b8,0b8,0b8,28,0b8
