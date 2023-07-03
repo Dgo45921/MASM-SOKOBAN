@@ -130,12 +130,10 @@ inicio:
 		cmp AL, 01
 		je loadLevel
 
-		cmp AL, 2
+		cmp AL, 03
 		je menuconfig
 
-		
-
-		cmp AL, 4
+		cmp AL, 04
 		je fin
 
 		loadLevel:
