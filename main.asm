@@ -6,6 +6,7 @@ PARED       equ      02
 CAJA        equ      03
 OBJETIVO    equ      04
 SUELO       equ      05
+CORRECTPOS  equ      06
 .MODEL SMALL
 .RADIX 16
 .STACK
@@ -28,33 +29,33 @@ maximo        db 0
 xFlecha       dw 0
 yFlecha       dw 0
 ;; CONTROLES
-control_arriba    db  48
-control_abajo     db  50
-control_izquierda db  4b
-control_derecha   db  4d
+controlUp    db  48
+controlDown     db  50
+controlLeft db  4b
+controlRight   db  4d
 ;; prompts change controls
-prompt_arriba    db  "Presione tecla arriba: ", "$"
-prompt_abajo     db  "Presione tecla abajo: ", "$"
-prompt_izquierda db  "Presione tecla izquierda: ", "$"
-prompt_derecha   db  "Presione tecla derecha: ", "$"
+promptUp    db  "Presione tecla arriba: ", "$"
+promptDown     db  "Presione tecla abajo: ", "$"
+promptLeft db  "Presione tecla izquierda: ", "$"
+promptRight   db  "Presione tecla derecha: ", "$"
 ;; STRING CONTROLES
-stringcontrol_arriba    db  " ", "$"
-stringcontrol_abajo     db  " ", "$"
-stringcontrol_izquierda db  " ", "$"
-stringcontrol_derecha   db  " ", "$"
+stringcontrolUp    db  " ", "$"
+stringcontrolDown     db  " ", "$"
+stringcontrolLeft db  " ", "$"
+stringcontrolRight   db  " ", "$"
 ; string control indicator
-mensajecontrol_arriba    db  "ARRIBA: ", "$"
-mensajecontrol_abajo     db  "ABAJO: ", "$"
-mensajecontrol_izquierda db  "IZQUIERDA: ", "$"
-mensajecontrol_derecha   db  "DERECHA: ", "$"
+mensajecontrolUp    db  "ARRIBA: ", "$"
+mensajecontrolDown     db  "ABAJO: ", "$"
+mensajecontrolLeft db  "IZQUIERDA: ", "$"
+mensajecontrolRight   db  "DERECHA: ", "$"
 mensajecambiarControles  db  "Cambiar controles", "$"
 mensajeregresar  db  "Regresar", "$"
+banderin  db 0
 ; mensajes de pausa
 reaundarPausa  db  "Reanudar", "$"
 salirPausa  db  "Salir", "$"
 ;; NIVELES
 nivel_x           db  "NIV.00",00
-nivel_0           db  "NIV.00",00
 handle_nivel      dw  0000
 linea             db  100 dup (0)
 elemento_actual   db  0
@@ -69,6 +70,8 @@ tk_objetivo   db  08,"objetivo"
 tk_coma       db  01,","
 ;;
 numero        db  5 dup (30)
+contadormalPuestas db 0000
+contadorLevel db 0000
 ;;
 
 .CODE
@@ -102,6 +105,11 @@ inicio:
 			jmp cfor
 		
 		exitfor:
+		mov [contadorLevel], 0000
+		mov nivel_x[04], "0"
+		mov nivel_x[05], "0"
+
+
 
 		displayPrincipalMenu:
 		call clear_pantalla
@@ -137,11 +145,11 @@ changeControls:
 		;; <<-- posicionar el cursor
 
 	call clear_pantalla
-	printString prompt_abajo
+	printString promptDown
 	mov ah, 00
 	int 16
-	mov control_abajo, ah
-	mov stringcontrol_abajo[0], al
+	mov controlDown, ah
+	mov stringcontrolDown[0], al
 
 	mov DL, 05  ; columna 12
 	mov DH, 01  ;fila 1
@@ -151,11 +159,11 @@ changeControls:
 		;; <<-- posicionar el cursor
 
 	call clear_pantalla
-	printString prompt_arriba
+	printString promptUp
 	mov ah, 00
 	int 16
-	mov control_arriba, ah
-	mov stringcontrol_arriba[0], al
+	mov controlUp, ah
+	mov stringcontrolUp[0], al
 
 		mov DL, 05  ; columna 12
 	mov DH, 01  ;fila 1
@@ -166,11 +174,11 @@ changeControls:
 
 
 	call clear_pantalla
-	printString prompt_derecha
+	printString promptRight
 	mov ah, 00
 	int 16
-	mov control_derecha, ah
-	mov stringcontrol_derecha[0], al
+	mov controlRight, ah
+	mov stringcontrolRight[0], al
 
 		mov DL, 05  ; columna 12
 	mov DH, 01  ;fila 1
@@ -181,11 +189,11 @@ changeControls:
 
 
 	call clear_pantalla
-	printString prompt_izquierda
+	printString promptLeft
 	mov ah, 00
 	int 16
-	mov control_izquierda, ah
-	mov stringcontrol_izquierda[0], al
+	mov controlLeft, ah
+	mov stringcontrolLeft[0], al
 
 
 
@@ -199,8 +207,35 @@ ciclo_juego:
 		call entrada_juego
 		jmp ciclo_juego
 		;;;;;;;;;;;;;;;;
+pasarSiguienteLevel:
+	inc contadorLevel
+	cmp contadorLevel, 01
+	je gotoSecond
+	cmp contadorLevel, 02
+	je gotoThird
+	jmp restart
+
+
+
+	gotoSecond:
+	mov nivel_x[04], "0"
+	mov nivel_x[05], "1"
+	jmp cargar_un_nivel
+
+
+	gotoThird:
+	mov nivel_x[04], "1"
+	mov nivel_x[05], "0"
+	jmp cargar_un_nivel
+
+
+	restart:
+		jmp exitfor
+
+
 
 cargar_un_nivel:
+		mov [contadormalPuestas], 0000
 		mov AL, 00
 		mov DX, offset nivel_x
 		mov AH, 3d
@@ -283,6 +318,7 @@ es_suelo:
 es_objetivo:
 		mov AL, OBJETIVO
 		mov [elemento_actual], AL
+		inc contadormalPuestas
 		jmp continuar_parseo0
 es_jugador:
 		mov AL, JUGADOR
@@ -536,14 +572,14 @@ menu_config:
 		mov AH, 02
 		int 10
 		push DX
-		mov DX, offset mensajecontrol_arriba
+		mov DX, offset mensajecontrolUp
 		mov AH, 09
 		int 21
 		pop DX
 
 		; imprimiendo el caracter correspondiente
 		push DX
-		mov DX, offset stringcontrol_arriba
+		mov DX, offset stringcontrolUp
 		mov AH, 09
 		int 21
 		pop DX
@@ -557,14 +593,14 @@ menu_config:
 		mov AH, 02
 		int 10
 		push DX
-		mov DX, offset mensajecontrol_abajo
+		mov DX, offset mensajecontrolDown
 		mov AH, 09
 		int 21
 		pop DX
 
 			; imprimiendo el caracter correspondiente
 		push DX
-		mov DX, offset stringcontrol_abajo
+		mov DX, offset stringcontrolDown
 		mov AH, 09
 		int 21
 		pop DX
@@ -575,14 +611,14 @@ menu_config:
 		mov AH, 02
 		int 10
 		push DX
-		mov DX, offset mensajecontrol_izquierda
+		mov DX, offset mensajecontrolLeft
 		mov AH, 09
 		int 21
 		pop DX
 
 			; imprimiendo el caracter correspondiente
 		push DX
-		mov DX, offset stringcontrol_izquierda
+		mov DX, offset stringcontrolLeft
 		mov AH, 09
 		int 21
 		pop DX
@@ -593,14 +629,14 @@ menu_config:
 		mov AH, 02
 		int 10
 		push DX
-		mov DX, offset mensajecontrol_derecha
+		mov DX, offset mensajecontrolRight
 		mov AH, 09
 		int 21
 		pop DX
 
 			; imprimiendo el caracter correspondiente
 		push DX
-		mov DX, offset stringcontrol_derecha
+		mov DX, offset stringcontrolRight
 		mov AH, 09
 		int 21
 		pop DX
@@ -927,6 +963,9 @@ ciclo_h:
 		;;
                 cmp DL, OBJETIVO
 		je pintar_objetivo_mapa
+        ;;
+                cmp DL, CORRECTPOS
+		je pintar_caja_mapa
 		;;
                 cmp DL, SUELO
 		je pintar_suelo_mapa
@@ -1112,36 +1151,183 @@ mapa_quemado:
 		ret
 
 
-;; entrada_juego - manejo de las entradas del juego
+
 entrada_juego:
 		mov AH, 01
 		int 16
-		jz fin_entrada_juego  ;; nada en el buffer de entrada
+		jz fin_entrada_juego 
 		mov AH, 00
 		int 16
 		;; AH <- scan code
-		cmp AH, [control_arriba]
+		cmp AH, [controlUp]
 		je mover_jugador_arr
-		cmp AH, [control_abajo]
-		je mover_jugador_aba
-		cmp AH, [control_izquierda]
-		je mover_jugador_izq
-		cmp AH, [control_derecha]
-		je mover_jugador_der
+		cmp AH, [controlDown]
+		je mover_jugadorDown
+		cmp AH, [controlLeft]
+		je mover_jugadorLeft
+		cmp AH, [controlRight]
+		je mover_jugadorRight
 		cmp AH, 3C
 		je putPause
 
 		ret
 mover_jugador_arr:
+		mov AH, [xJugador] 
+		mov AL, [yJugador] 
+		dec AL             
+		push AX
+		call obtener_de_mapa
+		pop AX
+		;; DL <- elemento en mapa
+		cmp DL, PARED 
+		je hay_paredUp
+        cmp DL, CAJA 
+		je hay_cajaUp
+        cmp DL, OBJETIVO 
+		je hay_objetivoUp
+        cmp DL, CORRECTPOS 
+		je hay_CORRECTPOSUp
+		mov [yJugador], AL         
+		;;
+		mov DL, JUGADOR            
+		push AX
+		call colocar_en_mapa        
+		pop AX
+		;;
+        cmp [banderin], 00     
+        jne pintar_objetivoUp
+        ;;
+		mov DL, SUELO             
+		inc AL                    
+		call colocar_en_mapa        
+		ret
+hay_paredUp:
+		ret
+hay_CORRECTPOSUp:
+		inc contadormalPuestas
+       
+        dec AL
+        push AX
+		call obtener_de_mapa
+		pop AX
+       
+        cmp DL, PARED 
+		je hay_paredUp
+        cmp DL, CAJA 
+		je hay_paredUp
+        cmp DL, OBJETIVO
+        je PutcorrPosUp
+       
+        mov DL, CAJA           
+		push AX
+		call colocar_en_mapa      
+		pop AX
+      
+        inc AL 
+        mov [yJugador], AL         
+        mov DL, JUGADOR           
+		push AX
+		call colocar_en_mapa      
+		pop AX
+        cmp [banderin], 00    
+        jne pintar_objetivoUp
+        ;;
+		mov DL, SUELO              
+		inc AL                     
+		call colocar_en_mapa       
+        inc [banderin]
+		ret
+hay_cajaUp:
+        ;revisar si hay algo arriba 
+        dec AL
+        push AX
+		call obtener_de_mapa
+		pop AX
+       
+        cmp DL, PARED 
+		je hay_paredUp
+        cmp DL, CAJA 
+		je hay_paredUp
+        cmp DL, OBJETIVO
+        je PutcorrPosUp
+      
+        mov DL, CAJA           
+		push AX
+		call colocar_en_mapa       
+		pop AX
+        ;movemos jugador
+        inc AL 
+        mov [yJugador], AL         
+        mov DL, JUGADOR           
+		push AX
+		call colocar_en_mapa       
+		pop AX
+        cmp [banderin], 00     
+        jne pintar_objetivoUp
+        ;;
+		mov DL, SUELO               
+		inc AL                     
+		call colocar_en_mapa       
+		ret
+PutcorrPosUp:
+		dec contadormalPuestas 
+		cmp contadormalPuestas,0000
+		je pasarSiguienteLevel
+      
+        mov DL, CORRECTPOS          
+		push AX
+		call colocar_en_mapa       
+		pop AX
+     
+        inc AL 
+        mov [yJugador], AL         
+        mov DL, JUGADOR         
+		push AX
+		call colocar_en_mapa      
+		pop AX
+        cmp [banderin], 00     
+        jne pintar_objetivoUp
+        ;;
+		mov DL, SUELO              
+		inc AL                     
+		call colocar_en_mapa       
+		ret
+hay_objetivoUp:
+        inc [banderin]
+        mov [yJugador], AL          
+		;;
+		mov DL, JUGADOR            
+		push AX
+		call colocar_en_mapa       
+		pop AX
+		;;
+		mov DL, SUELO              
+		inc AL                    
+		call colocar_en_mapa       
+		ret
+pintar_objetivoUp:
+        mov [banderin], 00      
+        mov DL, OBJETIVO           
+		inc AL                    
+		call colocar_en_mapa        
+		ret
+        
+mover_jugadorDown:
 		mov AH, [xJugador]
 		mov AL, [yJugador]
-		dec AL
+		inc AL
 		push AX
 		call obtener_de_mapa
 		pop AX
 		;; DL <- elemento en mapa
 		cmp DL, PARED
-		je hay_pared_arriba
+		je hay_paredDown
+        cmp DL, CAJA
+		je hay_cajaDown
+        cmp DL, OBJETIVO 
+		je hay_objetivoDown
+        cmp DL, CORRECTPOS 
+		je hay_CORRECTPOSDown
 		mov [yJugador], AL
 		;;
 		mov DL, JUGADOR
@@ -1149,36 +1335,130 @@ mover_jugador_arr:
 		call colocar_en_mapa
 		pop AX
 		;;
-		mov DL, SUELO
-		inc AL
-		call colocar_en_mapa
-		ret
-hay_pared_arriba:
-		ret
-mover_jugador_aba:
-		mov AH, [xJugador]
-		mov AL, [yJugador]
-		inc AL
-		push AX
-		call obtener_de_mapa
-		pop AX
-		;; DL <- elemento en mapa
-		cmp DL, PARED
-		je hay_pared_abajo
-		mov [yJugador], AL
-		;;
-		mov DL, JUGADOR
-		push AX
-		call colocar_en_mapa
-		pop AX
-		;;
+        cmp [banderin], 00
+        jne pintar_objetivoDown
+        ;;
 		mov DL, SUELO
 		dec AL
 		call colocar_en_mapa
 		ret
-hay_pared_abajo:
+hay_paredDown:
 		ret
-mover_jugador_izq:
+hay_CORRECTPOSDown:
+		push AX
+		printString salirPausa 
+		inc contadormalPuestas
+		pop AX
+       
+        inc AL
+        push AX
+		call obtener_de_mapa
+		pop AX
+        ;si lo hay ret
+        cmp DL, PARED 
+		je hay_paredUp
+        cmp DL, CAJA 
+		je hay_paredUp
+        cmp DL, OBJETIVO
+        je PutcorrPosDown
+        
+        mov DL, CAJA             
+		push AX
+		call colocar_en_mapa     
+		pop AX
+        ;movemos jugador
+        dec AL 
+        mov [yJugador], AL         
+        mov DL, JUGADOR             
+		push AX
+		call colocar_en_mapa       
+		pop AX
+        ;;
+        cmp [banderin], 00    
+        jne pintar_objetivoDown
+        ;;
+        mov DL, SUELO              
+		dec AL                     
+		call colocar_en_mapa       
+		inc [banderin]
+        ret
+hay_cajaDown:
+      
+        inc AL
+        push AX
+		call obtener_de_mapa
+		pop AX
+   
+        cmp DL, PARED 
+		je hay_paredUp
+        cmp DL, CAJA 
+		je hay_paredUp
+        cmp DL, OBJETIVO
+        je PutcorrPosDown
+       
+        mov DL, CAJA       
+		push AX
+		call colocar_en_mapa       
+		pop AX
+     
+        dec AL 
+        mov [yJugador], AL         
+        mov DL, JUGADOR            
+		push AX
+		call colocar_en_mapa       
+		pop AX
+        ;;
+        cmp [banderin], 00     
+        jne pintar_objetivoDown
+        ;;
+        mov DL, SUELO              
+		dec AL                   
+		call colocar_en_mapa       
+		ret
+PutcorrPosDown:
+		dec contadormalPuestas
+		cmp contadormalPuestas,0000
+		je pasarSiguienteLevel
+
+        mov DL, CORRECTPOS           
+		push AX
+		call colocar_en_mapa        
+		pop AX
+        ;movemos jugador
+        dec AL 
+        mov [yJugador], AL         
+        mov DL, JUGADOR            
+		push AX
+		call colocar_en_mapa      
+		pop AX
+        ;;
+        cmp [banderin], 00     
+        jne pintar_objetivoDown
+        ;;
+        mov DL, SUELO              
+		dec AL                      
+		call colocar_en_mapa       
+		ret
+hay_objetivoDown:
+        inc [banderin]
+        mov [yJugador], AL         
+		;;
+		mov DL, JUGADOR            
+		push AX
+		call colocar_en_mapa        
+		pop AX
+		;;
+		mov DL, SUELO              
+		dec AL                     
+		call colocar_en_mapa        
+		ret
+pintar_objetivoDown:
+        mov [banderin], 00     
+        mov DL, OBJETIVO           
+		dec AL                     
+		call colocar_en_mapa         
+		ret
+mover_jugadorLeft:
 		mov AH, [xJugador]
 		mov AL, [yJugador]
 		dec AH
@@ -1187,7 +1467,13 @@ mover_jugador_izq:
 		pop AX
 		;; DL <- elemento en mapa
 		cmp DL, PARED
-		je hay_pared_izquierda
+		je hay_paredLeft
+        cmp DL, CAJA
+		je hay_cajaLeft
+        cmp DL, OBJETIVO
+        je hay_objetivoLeft
+        cmp DL, CORRECTPOS
+        je hay_CORRECTPOSLeft
 		mov [xJugador], AH
 		;;
 		mov DL, JUGADOR
@@ -1195,13 +1481,127 @@ mover_jugador_izq:
 		call colocar_en_mapa
 		pop AX
 		;;
+        cmp [banderin], 00
+        jne pintar_objetivoLeft
+        ;;
 		mov DL, SUELO
 		inc AH
 		call colocar_en_mapa
 		ret
-hay_pared_izquierda:
+hay_paredLeft:
 		ret
-mover_jugador_der:
+hay_CORRECTPOSLeft:
+
+		inc contadormalPuestas
+
+        dec AH
+        push AX
+		call obtener_de_mapa
+		pop AX
+
+        cmp DL, PARED 
+		je hay_paredUp
+        cmp DL, CAJA 
+		je hay_paredUp
+        cmp DL, OBJETIVO 
+		je ponerCorrPOSLeft
+   
+        mov DL, CAJA          
+		push AX
+		call colocar_en_mapa     
+		pop AX
+        ;movemos jugador
+        inc AH 
+        mov [xJugador], AH        
+        mov DL, JUGADOR           
+		push AX
+		call colocar_en_mapa      
+		pop AX
+        ;;
+        cmp [banderin], 00    
+        jne pintar_objetivoLeft
+        ;;
+        mov DL, SUELO             
+		inc AH                      
+		call colocar_en_mapa       
+        inc [banderin]
+		ret
+hay_cajaLeft:
+
+        dec AH
+        push AX
+		call obtener_de_mapa
+		pop AX
+   
+        cmp DL, PARED 
+		je hay_paredUp
+        cmp DL, CAJA 
+		je hay_paredUp
+        cmp DL, OBJETIVO 
+		je ponerCorrPOSLeft
+      
+        mov DL, CAJA          
+		push AX
+		call colocar_en_mapa      
+		pop AX
+
+        inc AH 
+        mov [xJugador], AH        
+        mov DL, JUGADOR          
+		push AX
+		call colocar_en_mapa        
+		pop AX
+        ;;
+        cmp [banderin], 00      
+        jne pintar_objetivoLeft
+        ;;
+        mov DL, SUELO               
+		inc AH                     
+		call colocar_en_mapa        
+		ret
+ponerCorrPOSLeft:
+		dec contadormalPuestas
+		cmp contadormalPuestas,0000
+		je pasarSiguienteLevel
+        mov DL, CORRECTPOS           
+		push AX
+		call colocar_en_mapa      
+		pop AX
+
+        inc AH 
+        mov [xJugador], AH         
+        mov DL, JUGADOR             
+		push AX
+		call colocar_en_mapa       
+		pop AX
+        ;;
+        cmp [banderin], 00      
+        jne pintar_objetivoLeft
+        ;;
+        mov DL, SUELO               
+		inc AH                     
+		call colocar_en_mapa        
+		ret
+hay_objetivoLeft:
+        inc [banderin]
+        mov [xJugador], AH        
+		;;
+		mov DL, JUGADOR             
+		push AX
+		call colocar_en_mapa        
+		pop AX
+		;;
+		mov DL, SUELO              
+		inc AH                     
+		call colocar_en_mapa       
+		ret
+pintar_objetivoLeft:
+        mov [banderin], 00      
+        mov DL, OBJETIVO           
+		inc AH                     
+		call colocar_en_mapa       
+		ret
+mover_jugadorRight:
 		mov AH, [xJugador]
 		mov AL, [yJugador]
 		inc AH
@@ -1210,7 +1610,13 @@ mover_jugador_der:
 		pop AX
 		;; DL <- elemento en mapa
 		cmp DL, PARED
-		je hay_pared_derecha
+		je hay_paredRight
+        cmp DL, CAJA
+		je hay_cajaRight
+        cmp DL, OBJETIVO
+        je hay_objetivoRight
+        cmp DL, CORRECTPOS
+        je hay_CORRECTPOSRight
 		mov [xJugador], AH
 		;;
 		mov DL, JUGADOR
@@ -1218,14 +1624,131 @@ mover_jugador_der:
 		call colocar_en_mapa
 		pop AX
 		;;
+        cmp [banderin], 00
+        jne pintar_objetivoRight
+        ;;
 		mov DL, SUELO
 		dec AH
 		call colocar_en_mapa
 		ret
-hay_pared_derecha:
+hay_paredRight:
+		ret
+hay_CORRECTPOSRight:
+
+		inc contadormalPuestas
+      
+        inc AH
+        push AX
+		call obtener_de_mapa
+		pop AX
+      
+        cmp DL, PARED 
+		je hay_paredUp
+        cmp DL, CAJA 
+		je hay_paredUp
+        cmp DL, OBJETIVO
+        je ponerCorrPOSRight
+      
+        mov DL, CAJA           
+		push AX
+		call colocar_en_mapa       
+		pop AX
+
+        dec AH 
+        mov [xJugador], AH         
+        mov DL, JUGADOR            
+		push AX
+		call colocar_en_mapa      
+		pop AX
+        ;;
+        cmp [banderin], 00      
+        jne pintar_objetivoRight
+        ;;
+        mov DL, SUELO               
+		dec AH                     
+		call colocar_en_mapa        
+        inc [banderin]
+		ret
+hay_cajaRight:
+       
+        inc AH
+        push AX
+		call obtener_de_mapa
+		pop AX
+      
+        cmp DL, PARED 
+		je hay_paredUp
+        cmp DL, CAJA 
+		je hay_paredUp
+        cmp DL, OBJETIVO
+        je ponerCorrPOSRight
+      
+        mov DL, CAJA            
+		push AX
+		call colocar_en_mapa      
+		pop AX
+    
+        dec AH 
+        mov [xJugador], AH         
+        mov DL, JUGADOR            
+		push AX
+		call colocar_en_mapa     
+		pop AX
+        ;;
+        cmp [banderin], 00    
+        jne pintar_objetivoRight
+        ;;
+        mov DL, SUELO               
+		dec AH                      
+		call colocar_en_mapa      
+		ret
+ponerCorrPOSRight:
+		dec contadormalPuestas
+		cmp contadormalPuestas,0000
+		je pasarSiguienteLevel
+
+
+        mov DL, CORRECTPOS           
+		push AX
+		call colocar_en_mapa        
+		pop AX
+      
+        dec AH 
+        mov [xJugador], AH         
+        mov DL, JUGADOR            
+		push AX
+		call colocar_en_mapa       
+		pop AX
+        ;;
+        cmp [banderin], 00     
+        jne pintar_objetivoRight
+        ;;
+        mov DL, SUELO              
+		dec AH                      
+		call colocar_en_mapa       
+		ret
+hay_objetivoRight:
+        inc [banderin]
+        mov [xJugador], AH         
+		;;
+		mov DL, JUGADOR            
+		push AX
+		call colocar_en_mapa      
+		pop AX
+		;;
+		mov DL, SUELO             
+		dec AH                     
+		call colocar_en_mapa      
+		ret
+pintar_objetivoRight:
+        mov [banderin], 00      
+        mov DL, OBJETIVO           
+		dec AH                    
+		call colocar_en_mapa       
 		ret
 fin_entrada_juego:
 		ret
+
 
 putPause:
 	call menu_pause
