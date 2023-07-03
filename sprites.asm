@@ -66,6 +66,6 @@ data_sprite_obj   db  0b8,0b8,0b8,0b8,0b8,0b8,0b8,0b8
                   db  0b8,0b8,28,0b8,0b8,28,0b8,0b8
                   db  0b8,28,0b8,0b8,0b8,0b8,28,0b8
                   db  0b8,0b8,0b8,0b8,0b8,0b8,0b8,0b8
-mapa              db   3e8 dup (0)
+mapa              db   920 dup (0)
 
 endm

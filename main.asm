@@ -18,6 +18,7 @@ configuracion db "CONFIGURACION$"
 puntajes      db "PUNTAJES ALTOS$"
 salir         db "SALIR$"
 iniciales     db "Diego Andres Huite Alvarez",0A,"              202003585","$"
+inicialesGame     db "DDAHA - 202003585","$"
 controlesActuales     db "CONTROLES ACTUALES","$"
 newLine db 0A, "$"
 ;; JUEGO
@@ -51,7 +52,7 @@ mensajecontrolLeft db  "IZQUIERDA: ", "$"
 mensajecontrolRight   db  "DERECHA: ", "$"
 mensajecambiarControles  db  "Cambiar controles", "$"
 mensajeregresar  db  "Regresar", "$"
-banderin  db 0
+wasTarget  db 0
 ; mensajes de pausa
 reaundarPausa  db  "Reanudar", "$"
 salirPausa  db  "Salir", "$"
@@ -72,13 +73,20 @@ tk_caja       db  04,"caja"
 tk_objetivo   db  08,"objetivo"
 tk_coma       db  01,","
 ;;
-numero        db  5 dup (30)
+
 contadormalPuestas db 0000
 contadorLevel db 0000
-promptpath    db  "Ruta: ", "$"
+promptpath    db  "RUTA: ", "$"
+movIndicator db "MOVIMIENTOS:", "$"
+numeroString db "00000", "$"
+cleanerNumeroString db "     ", "$"
+contadorMovs dw 00000
+
+
 ;;
 
 customLevel db 0
+numero        db  5 dup (30)
 .CODE
 .STARTUP
 inicio:
@@ -110,6 +118,7 @@ inicio:
 			jmp cfor
 		
 		exitfor:
+		mov [contadorMovs], 0000
 		mov [contadorLevel], 0000
 		mov nivel_x[04], "0"
 		mov nivel_x[05], "0"
@@ -258,6 +267,7 @@ ciclo_juego:
 		jmp ciclo_juego
 		;;;;;;;;;;;;;;;;
 pasarSiguienteLevel:
+	call clear_pantalla
 	cmp customLevel, 1
 	je displayPrincipalMenu
 
@@ -298,6 +308,10 @@ pasarSiguienteLevel:
 
 
 cargar_un_nivel:
+		mov di, offset mapa
+		mov cx, 3e8
+		mov al, 0000
+		call memset
 		mov [customLevel],0000
 		mov [contadormalPuestas], 0000
 		mov AL, 00
@@ -471,6 +485,26 @@ fin_parseo:
 		mov BX, [handle_nivel]
 		int 21
 		;;
+		mov DL, 00  ; columna 12
+		mov DH, 19  ;fila 1
+		mov BH, 00
+		mov AH, 02 
+		int 10
+		printString inicialesGame
+
+		mov DL, 16  ; columna 12
+		mov DH, 00  ;fila 1
+		mov BH, 00
+		mov AH, 02 
+		int 10
+		printString movIndicator
+
+		mov DL, 22  ; columna 12
+		mov DH, 00  ;fila 1
+		mov BH, 00
+		mov AH, 02 
+		int 10
+		printString numeroString
 		jmp ciclo_juego
 		jmp fin
 
@@ -1183,10 +1217,10 @@ obtener_de_mapa:
 ;; ENTRADA:
 ;; SALIDA:
 pintar_mapa:
-		mov AL, 00   ;; fila
+		mov AL, 01   ;; fila
 		;;
 ciclo_v:
-		cmp AL, 19
+		cmp AL, 17
 		je fin_pintar_mapa
 		mov AH, 00   ;; columna
 		;;
@@ -1407,6 +1441,7 @@ entrada_juego:
 		mov AH, 00
 		int 16
 		;; AH <- scan code
+		
 		cmp AH, [controlUp]
 		je mover_jugador_arr
 		cmp AH, [controlDown]
@@ -1442,12 +1477,15 @@ mover_jugador_arr:
 		call colocar_en_mapa        
 		pop AX
 		;;
-        cmp [banderin], 00     
+        cmp [wasTarget], 00     
         jne pintar_objetivoUp
         ;;
 		mov DL, SUELO             
 		inc AL                    
-		call colocar_en_mapa        
+		call colocar_en_mapa   
+		inc contadorMovs
+		call updateMovCounter  
+		
 		ret
 hay_paredUp:
 		ret
@@ -1477,13 +1515,15 @@ hay_CORRECTPOSUp:
 		push AX
 		call colocar_en_mapa      
 		pop AX
-        cmp [banderin], 00    
+        cmp [wasTarget], 00    
         jne pintar_objetivoUp
         ;;
 		mov DL, SUELO              
 		inc AL                     
 		call colocar_en_mapa       
-        inc [banderin]
+        inc [wasTarget]
+		inc contadorMovs
+		call updateMovCounter  
 		ret
 hay_cajaUp:
         ;revisar si hay algo arriba 
@@ -1510,12 +1550,14 @@ hay_cajaUp:
 		push AX
 		call colocar_en_mapa       
 		pop AX
-        cmp [banderin], 00     
+        cmp [wasTarget], 00     
         jne pintar_objetivoUp
         ;;
 		mov DL, SUELO               
 		inc AL                     
-		call colocar_en_mapa       
+		call colocar_en_mapa   
+		inc contadorMovs
+		call updateMovCounter
 		ret
 PutcorrPosUp:
 		dec contadormalPuestas 
@@ -1533,15 +1575,17 @@ PutcorrPosUp:
 		push AX
 		call colocar_en_mapa      
 		pop AX
-        cmp [banderin], 00     
+        cmp [wasTarget], 00     
         jne pintar_objetivoUp
         ;;
 		mov DL, SUELO              
 		inc AL                     
 		call colocar_en_mapa       
+		inc contadorMovs
+		call updateMovCounter  
 		ret
 hay_objetivoUp:
-        inc [banderin]
+        inc [wasTarget]
         mov [yJugador], AL          
 		;;
 		mov DL, JUGADOR            
@@ -1551,13 +1595,17 @@ hay_objetivoUp:
 		;;
 		mov DL, SUELO              
 		inc AL                    
-		call colocar_en_mapa       
+		call colocar_en_mapa  
+		inc contadorMovs
+		call updateMovCounter       
 		ret
 pintar_objetivoUp:
-        mov [banderin], 00      
+        mov [wasTarget], 00      
         mov DL, OBJETIVO           
 		inc AL                    
-		call colocar_en_mapa        
+		call colocar_en_mapa    
+		inc contadorMovs
+		call updateMovCounter  
 		ret
         
 mover_jugadorDown:
@@ -1583,12 +1631,14 @@ mover_jugadorDown:
 		call colocar_en_mapa
 		pop AX
 		;;
-        cmp [banderin], 00
+        cmp [wasTarget], 00
         jne pintar_objetivoDown
         ;;
 		mov DL, SUELO
 		dec AL
 		call colocar_en_mapa
+		inc contadorMovs
+		call updateMovCounter  
 		ret
 hay_paredDown:
 		ret
@@ -1622,13 +1672,15 @@ hay_CORRECTPOSDown:
 		call colocar_en_mapa       
 		pop AX
         ;;
-        cmp [banderin], 00    
+        cmp [wasTarget], 00    
         jne pintar_objetivoDown
         ;;
         mov DL, SUELO              
 		dec AL                     
 		call colocar_en_mapa       
-		inc [banderin]
+		inc [wasTarget]
+		inc contadorMovs
+		call updateMovCounter  
         ret
 hay_cajaDown:
       
@@ -1656,12 +1708,14 @@ hay_cajaDown:
 		call colocar_en_mapa       
 		pop AX
         ;;
-        cmp [banderin], 00     
+        cmp [wasTarget], 00     
         jne pintar_objetivoDown
         ;;
         mov DL, SUELO              
 		dec AL                   
-		call colocar_en_mapa       
+		call colocar_en_mapa  
+		inc contadorMovs
+		call updateMovCounter       
 		ret
 PutcorrPosDown:
 		dec contadormalPuestas
@@ -1680,15 +1734,17 @@ PutcorrPosDown:
 		call colocar_en_mapa      
 		pop AX
         ;;
-        cmp [banderin], 00     
+        cmp [wasTarget], 00     
         jne pintar_objetivoDown
         ;;
         mov DL, SUELO              
 		dec AL                      
-		call colocar_en_mapa       
+		call colocar_en_mapa  
+		inc contadorMovs
+		call updateMovCounter       
 		ret
 hay_objetivoDown:
-        inc [banderin]
+        inc [wasTarget]
         mov [yJugador], AL         
 		;;
 		mov DL, JUGADOR            
@@ -1698,13 +1754,17 @@ hay_objetivoDown:
 		;;
 		mov DL, SUELO              
 		dec AL                     
-		call colocar_en_mapa        
+		call colocar_en_mapa  
+		inc contadorMovs
+		call updateMovCounter        
 		ret
 pintar_objetivoDown:
-        mov [banderin], 00     
+        mov [wasTarget], 00     
         mov DL, OBJETIVO           
 		dec AL                     
-		call colocar_en_mapa         
+		call colocar_en_mapa     
+		inc contadorMovs
+		call updateMovCounter      
 		ret
 mover_jugadorLeft:
 		mov AH, [xJugador]
@@ -1729,12 +1789,14 @@ mover_jugadorLeft:
 		call colocar_en_mapa
 		pop AX
 		;;
-        cmp [banderin], 00
+        cmp [wasTarget], 00
         jne pintar_objetivoLeft
         ;;
 		mov DL, SUELO
 		inc AH
 		call colocar_en_mapa
+		inc contadorMovs
+		call updateMovCounter  
 		ret
 hay_paredLeft:
 		ret
@@ -1766,13 +1828,15 @@ hay_CORRECTPOSLeft:
 		call colocar_en_mapa      
 		pop AX
         ;;
-        cmp [banderin], 00    
+        cmp [wasTarget], 00    
         jne pintar_objetivoLeft
         ;;
         mov DL, SUELO             
 		inc AH                      
 		call colocar_en_mapa       
-        inc [banderin]
+        inc [wasTarget]
+		inc contadorMovs
+		call updateMovCounter  
 		ret
 hay_cajaLeft:
 
@@ -1800,12 +1864,14 @@ hay_cajaLeft:
 		call colocar_en_mapa        
 		pop AX
         ;;
-        cmp [banderin], 00      
+        cmp [wasTarget], 00      
         jne pintar_objetivoLeft
         ;;
         mov DL, SUELO               
 		inc AH                     
-		call colocar_en_mapa        
+		call colocar_en_mapa   
+		inc contadorMovs
+		call updateMovCounter       
 		ret
 ponerCorrPOSLeft:
 		dec contadormalPuestas
@@ -1823,15 +1889,17 @@ ponerCorrPOSLeft:
 		call colocar_en_mapa       
 		pop AX
         ;;
-        cmp [banderin], 00      
+        cmp [wasTarget], 00      
         jne pintar_objetivoLeft
         ;;
         mov DL, SUELO               
 		inc AH                     
-		call colocar_en_mapa        
+		call colocar_en_mapa   
+		inc contadorMovs
+		call updateMovCounter       
 		ret
 hay_objetivoLeft:
-        inc [banderin]
+        inc [wasTarget]
         mov [xJugador], AH        
 		;;
 		mov DL, JUGADOR             
@@ -1841,13 +1909,17 @@ hay_objetivoLeft:
 		;;
 		mov DL, SUELO              
 		inc AH                     
-		call colocar_en_mapa       
+		call colocar_en_mapa  
+		inc contadorMovs
+		call updateMovCounter       
 		ret
 pintar_objetivoLeft:
-        mov [banderin], 00      
+        mov [wasTarget], 00      
         mov DL, OBJETIVO           
 		inc AH                     
 		call colocar_en_mapa       
+		inc contadorMovs
+		call updateMovCounter  
 		ret
 mover_jugadorRight:
 		mov AH, [xJugador]
@@ -1872,12 +1944,14 @@ mover_jugadorRight:
 		call colocar_en_mapa
 		pop AX
 		;;
-        cmp [banderin], 00
+        cmp [wasTarget], 00
         jne pintar_objetivoRight
         ;;
 		mov DL, SUELO
 		dec AH
 		call colocar_en_mapa
+		inc contadorMovs
+		call updateMovCounter  
 		ret
 hay_paredRight:
 		ret
@@ -1909,13 +1983,15 @@ hay_CORRECTPOSRight:
 		call colocar_en_mapa      
 		pop AX
         ;;
-        cmp [banderin], 00      
+        cmp [wasTarget], 00      
         jne pintar_objetivoRight
         ;;
         mov DL, SUELO               
 		dec AH                     
 		call colocar_en_mapa        
-        inc [banderin]
+        inc [wasTarget]
+		inc contadorMovs
+		call updateMovCounter  
 		ret
 hay_cajaRight:
        
@@ -1943,12 +2019,14 @@ hay_cajaRight:
 		call colocar_en_mapa     
 		pop AX
         ;;
-        cmp [banderin], 00    
+        cmp [wasTarget], 00    
         jne pintar_objetivoRight
         ;;
         mov DL, SUELO               
 		dec AH                      
-		call colocar_en_mapa      
+		call colocar_en_mapa  
+		inc contadorMovs
+		call updateMovCounter      
 		ret
 ponerCorrPOSRight:
 		dec contadormalPuestas
@@ -1968,15 +2046,17 @@ ponerCorrPOSRight:
 		call colocar_en_mapa       
 		pop AX
         ;;
-        cmp [banderin], 00     
+        cmp [wasTarget], 00     
         jne pintar_objetivoRight
         ;;
         mov DL, SUELO              
 		dec AH                      
-		call colocar_en_mapa       
+		call colocar_en_mapa   
+		inc contadorMovs
+		call updateMovCounter      
 		ret
 hay_objetivoRight:
-        inc [banderin]
+        inc [wasTarget]
         mov [xJugador], AH         
 		;;
 		mov DL, JUGADOR            
@@ -1986,13 +2066,17 @@ hay_objetivoRight:
 		;;
 		mov DL, SUELO             
 		dec AH                     
-		call colocar_en_mapa      
+		call colocar_en_mapa     
+		inc contadorMovs
+		call updateMovCounter   
 		ret
 pintar_objetivoRight:
-        mov [banderin], 00      
+        mov [wasTarget], 00      
         mov DL, OBJETIVO           
 		dec AH                    
 		call colocar_en_mapa       
+		inc contadorMovs
+		call updateMovCounter  
 		ret
 fin_entrada_juego:
 		ret
@@ -2276,6 +2360,93 @@ seguir_convirtiendo:
 		loop seguir_convirtiendo
 retorno_cadenaAnum:
 		ret
+;; numAcadena
+;; ENTRADA:
+;;     AX -> número a convertir    
+;; SALIDA:
+;;    [numero] -> numero convertido en cadena
+;;AX = 1500
+;;CX = AX  <<<<<<<<<<<
+;;[31][30][30][30][30]
+;;                  ^
+numAcadena:
+		mov CX, 0005
+		mov DI, offset numero
+ciclo_poner30s:
+		mov BL, 30
+		mov [DI], BL
+		inc DI
+		loop ciclo_poner30s
+		;; tenemos '0' en toda la cadena
+		mov CX, AX    ; inicializar contador
+		mov DI, offset numero
+		add DI, 0004
+		;;
+ciclo_convertirAcadena:
+		mov BL, [DI]
+		inc BL
+		mov [DI], BL
+		cmp BL, 3a
+		je aumentar_siguiente_digito_primera_vez
+		loop ciclo_convertirAcadena
+		jmp retorno_convertirAcadena
+aumentar_siguiente_digito_primera_vez:
+		push DI
+aumentar_siguiente_digito:
+		mov BL, 30     ; poner en '0' el actual
+		mov [DI], BL
+		dec DI         ; puntero a la cadena
+		mov BL, [DI]
+		inc BL
+		mov [DI], BL
+		cmp BL, 3a
+		je aumentar_siguiente_digito
+		pop DI         ; se recupera DI
+		loop ciclo_convertirAcadena
+retorno_convertirAcadena:
+		ret
+
+
+updateMovCounter:
+
+		mov DL, 22  ; columna 12
+		mov DH, 00  ;fila 1
+		mov BH, 00
+		mov AH, 02 
+		int 10
+ 		printString cleanerNumeroString
+
+		mov ax, [contadorMovs]
+		call numAcadena
+
+
+		xor si, si
+
+
+		forNumString:
+			cmp si, 05
+			je exitFornumstring
+
+			mov al, numero[si]
+			mov numeroString[si], al 
+
+			
+			inc si
+			jmp forNumString
+
+
+		exitFornumstring:
+
+		mov DL, 22  ; columna 12
+		mov DH, 00  ;fila 1
+		mov BH, 00
+		mov AH, 02 
+		int 10
+ 		printString numeroString
+		
+
+
+ret
 
 
 fin:
