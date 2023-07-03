@@ -19,6 +19,7 @@ puntajes      db "PUNTAJES ALTOS$"
 salir         db "SALIR$"
 iniciales     db "Diego Andres Huite Alvarez",0A,"              202003585","$"
 controlesActuales     db "CONTROLES ACTUALES","$"
+newLine db 0A, "$"
 ;; JUEGO
 xJugador      db 0
 yJugador      db 0
@@ -56,6 +57,8 @@ reaundarPausa  db  "Reanudar", "$"
 salirPausa  db  "Salir", "$"
 ;; NIVELES
 nivel_x           db  "NIV.00",00
+inputBuffer db   21, 00 
+    db  21 dup (0)
 handle_nivel      dw  0000
 linea             db  100 dup (0)
 elemento_actual   db  0
@@ -72,8 +75,10 @@ tk_coma       db  01,","
 numero        db  5 dup (30)
 contadormalPuestas db 0000
 contadorLevel db 0000
+promptpath    db  "Ruta: ", "$"
 ;;
 
+customLevel db 0
 .CODE
 .STARTUP
 inicio:
@@ -122,11 +127,54 @@ inicio:
 		cmp AL, 0
 		je cargar_un_nivel
 
+		cmp AL, 01
+		je loadLevel
+
 		cmp AL, 2
 		je menuconfig
 
+		
+
 		cmp AL, 4
 		je fin
+
+		loadLevel:
+		call clear_pantalla
+		mov DL, 05
+		mov DH, 08
+		mov BH, 00
+		mov AH, 02
+		int 10
+
+		printString promptpath
+		saveBufferedInput inputBuffer
+        printString newLine
+        bufferPrinter inputBuffer
+		; limpiando el 0D
+		 xor si, si
+		 mov di, 0002
+
+
+		forCleaner:
+			cmp si, 21
+			je exitCleaner
+			cmp inputBuffer[di], 0D
+			jne continueCleaner
+			mov inputBuffer[di],00
+
+
+
+
+			continueCleaner:
+			inc si
+			inc di
+			jmp forCleaner
+
+
+		exitCleaner:
+
+		jmp cargar_un_nivel2
+		
 
 		
 
@@ -212,6 +260,10 @@ ciclo_juego:
 		jmp ciclo_juego
 		;;;;;;;;;;;;;;;;
 pasarSiguienteLevel:
+	cmp customLevel, 1
+	je displayPrincipalMenu
+
+
 	inc contadorLevel
 	cmp contadorLevel, 01
 	je gotoSecond
@@ -248,6 +300,7 @@ pasarSiguienteLevel:
 
 
 cargar_un_nivel:
+		mov [customLevel],0000
 		mov [contadormalPuestas], 0000
 		mov AL, 00
 		mov DX, offset nivel_x
@@ -422,6 +475,190 @@ fin_parseo:
 		;;
 		jmp ciclo_juego
 		jmp fin
+
+
+
+
+; NIVEL CUSTOM -------------------------------------
+
+cargar_un_nivel2:
+		mov [customLevel], 01
+		mov [contadormalPuestas], 0000
+		mov AL, 00
+		mov DX, offset inputBuffer + 02
+		mov AH, 3d
+		int 21
+		jc inicio
+		mov [handle_nivel], AX
+		;;
+ciclo_lineas2:
+		mov BX, [handle_nivel]
+		call siguiente_linea
+		cmp DL, 0ff      ;; fin-del-archivo?
+		je ver_si_hay_algo_en_linea2
+		cmp DH, 00      ;; línea-con-algo?
+		je ciclo_lineas2
+		jmp logica_parseo2
+ver_si_hay_algo_en_linea2:
+		cmp DH, 00
+		je fin_parseo2
+		;;;;;;;;;;;;;;;;;;;;;;;
+		;; lógica del parseo ;;
+		;;;;;;;;;;;;;;;;;;;;;;;
+		;; ignorar espacios o retornos de carro
+logica_parseo2:
+		mov DI, offset linea
+		push DI
+		;; veríficar retorno de carro
+		mov AL, [DI]
+		cmp AL, 20
+		je ignorar02
+		cmp AL, 0d
+		je ignorar02
+		jmp iniciar_parseo2
+ignorar02:
+		call ignorar_espacios
+		;;
+		;; al principio del buffer de la línea está: pared, caja, jugador, suelo, objetivo
+iniciar_parseo2:
+		mov SI, offset tk_pared
+		call cadena_igual
+		cmp DL, 0ff               ;; cadenas iguales
+		je es_pared2
+		pop DI
+		push DI
+		mov SI, offset tk_caja
+		call cadena_igual
+		cmp DL, 0ff               ;; cadenas iguales
+		je es_caja2
+		pop DI
+		push DI
+		mov SI, offset tk_suelo
+		call cadena_igual
+		cmp DL, 0ff               ;; cadenas iguales
+		je es_suelo2
+		pop DI
+		push DI
+		mov SI, offset tk_objetivo
+		call cadena_igual
+		cmp DL, 0ff               ;; cadenas iguales
+		je es_objetivo2
+		pop DI
+		push DI
+		mov SI, offset tk_jugador
+		call cadena_igual
+		cmp DL, 0ff               ;; cadenas iguales
+		je es_jugador2
+		pop DI
+		jmp ciclo_lineas2
+es_pared2:
+		mov AL, PARED
+		mov [elemento_actual], AL
+		jmp continuar_parseo02
+es_caja2:
+		mov AL, CAJA
+		mov [elemento_actual], AL
+		jmp continuar_parseo02
+es_suelo2:
+		mov AL, SUELO
+		mov [elemento_actual], AL
+		jmp continuar_parseo02
+es_objetivo2:
+		mov AL, OBJETIVO
+		mov [elemento_actual], AL
+		inc contadormalPuestas
+		jmp continuar_parseo02
+es_jugador2:
+		mov AL, JUGADOR
+		mov [elemento_actual], AL
+		jmp continuar_parseo02
+		;; ignorar espacios
+continuar_parseo02:
+		pop SI         ; ignorara valor inicial de DI
+		mov AL, [DI]
+		cmp AL, 20
+		jne ciclo_lineas2
+		call ignorar_espacios
+		;; obtener una cadena numérica
+		call leer_cadena_numerica
+		push DI
+		mov DI, offset numero
+		call cadenaAnum
+		mov [xElemento], AL
+		pop DI
+		;; ignorar espacios
+		mov AL, [DI]
+		cmp AL, 20
+		je continuar_parseo12
+		cmp AL, ','
+		je continuar_parseo22
+		jmp ciclo_lineas2
+continuar_parseo12:
+		;; ignorar espacios
+		call ignorar_espacios
+continuar_parseo22:
+		;; obtener una coma
+		mov SI, offset tk_coma
+		call cadena_igual
+		cmp DL, 0ff
+		jne ciclo_lineas2
+		;; ignorar espacios
+		mov AL, [DI]
+		cmp AL, 20
+		jne ciclo_lineas2
+		call ignorar_espacios
+		;; obtener una cadena numérica
+		mov AL, [elemento_actual]
+		cmp AL, JUGADOR
+		jne seguir_normal_debug2
+seguir_normal_debug2:
+		call leer_cadena_numerica
+		push DI
+		mov DI, offset numero
+		call cadenaAnum
+		mov [yElemento], AL
+		pop DI
+		;; ignorar_espacios o retorno de carro
+		mov AL, [DI]
+		cmp AL, 20
+		je ignorar12
+		cmp AL, 0d
+		je ignorar12
+		jmp ver_final_de_linea2
+ignorar12:
+		call ignorar_espacios
+		;; ver si es el final de la cadena
+ver_final_de_linea2:
+		mov AL, [DI]
+		cmp AL, 00
+		jne ciclo_lineas2
+		;; usar la información
+		;;
+		mov DL, [elemento_actual]
+		mov AH, [xElemento]
+		mov AL, [yElemento]
+		call colocar_en_mapa
+		mov AL, JUGADOR
+		cmp AL, [elemento_actual]
+		je guardar_coordenadas_jugador2
+		jmp ciclo_lineas2
+guardar_coordenadas_jugador2:
+		mov AH, [xElemento]
+		mov AL, [yElemento]
+		mov [xJugador], AH
+		mov [yJugador], AL
+		jmp ciclo_lineas2
+		;;;;;;;;;;;;;;;;;;;;;;;
+fin_parseo2:
+		;; cerrar archivo
+		mov AH, 3e
+		mov BX, [handle_nivel]
+		int 21
+		;;
+		jmp ciclo_juego
+		jmp fin
+
+
 
 ;; pintar_pixel - pintar un pixel
 ;; ENTRADA:
