@@ -108,6 +108,10 @@ inicio:
 		mov [contadorLevel], 0000
 		mov nivel_x[04], "0"
 		mov nivel_x[05], "0"
+		mov di, offset mapa
+		mov cx, 3e8
+		mov al, 0000
+		call memset
 
 
 
@@ -126,7 +130,7 @@ inicio:
 
 		
 
-		;call mapa_quemado
+
 		
 menuconfig:
 	call menu_config
@@ -220,12 +224,21 @@ pasarSiguienteLevel:
 	gotoSecond:
 	mov nivel_x[04], "0"
 	mov nivel_x[05], "1"
+
+	mov di, offset mapa
+	mov cx, 3e8
+	mov al, 0000
+	call memset
 	jmp cargar_un_nivel
 
 
 	gotoThird:
 	mov nivel_x[04], "1"
 	mov nivel_x[05], "0"
+	mov di, offset mapa
+	mov cx, 3e8
+	mov al, 0000
+	call memset
 	jmp cargar_un_nivel
 
 
